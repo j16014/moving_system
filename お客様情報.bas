@@ -3,6 +3,7 @@ Option Explicit
 
 'お客様情報クリア
 Sub クリア_Click()
+    ' セルの内容をクリアする。
     Range("I5") = ""    ' お客様ID
     Range("X9") = ""    ' お客様氏名
     Range("B9") = ""    ' 希望日1
@@ -53,38 +54,40 @@ End Sub
 
 ' 参照
 Sub SELECT_Click()
+    ' フォームを表示する。
     参照Form.Show
 End Sub
 
 ' 追加
 Sub INSERT_Click()
-    ' ワークシート表示
+    ' ワークシートを表示し移動する。
     Worksheets("新規作成").Visible = True
-    ' シート移動
     Worksheets("新規作成").Activate
     Range("A1").Select
 End Sub
 
 ' 更新
 Sub UPDATA_Click()
+    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
     Dim db As DBManager         ' データベースクラス
-    Dim dbFlg As Boolean        ' 接続フラグ
-    Dim SQL As String           ' SQL
-    Dim result As Long          ' YesNoボタン表示
-    Dim thisyear As Integer     ' 年
-    Dim thismonth As Integer    ' 月
-    Dim thisday As Integer      ' 日
-     
+    
     On Error GoTo ErrorTrap
     
-    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
     Set db = New DBManager
-    dbFlg = db.connect
-          
-    result = MsgBox("上書き保存してもよろしいですか？", vbYesNo + vbExclamation + vbDefaultButton2)
+    db.connect
     
+    
+    ' 確認ボタンを表示し、確認ボタンがYesの場合、文字数が制限値を超えていないかチェックする。
+    Dim result As Long  ' YesNoボタン表示
+    
+    result = MsgBox("上書き保存してもよろしいですか？", vbYesNo + vbExclamation + vbDefaultButton2)
+
     If result = vbYes Then
-        ' 文字数制限チェック
+        If Range("I5").Value = "" Then
+            MsgBox "IDが選択されていません"
+            End
+        End If
+        
         If Len(Range("X9").Value) <= 20 And _
         Len(Range("B9").Value) <= 2 And Len(Range("J9").Value) <= 2 And _
         Len(Range("Q9").Value) <= 4 And Len(Range("S9").Value) <= 10 And Len(Range("V9").Value) <= 10 And _
@@ -103,18 +106,27 @@ Sub UPDATA_Click()
         Len(Range("AZ15").Value) <= 2 And Len(Range("BD15").Value) <= 2 And Len(Range("AU18").Value) <= 20 And _
         Len(Range("AZ73").Value) <= 5 _
         Then
-            ' 引越し年判定
+        
+            
+            ' Date関数によって今日の日付を取得し、セルの日付が昨日の日付以前である場合年を加算する。
+            Dim thisyear As Integer     ' 年
+            Dim thismonth As Integer    ' 月
+            Dim thisday As Integer      ' 日
+            
             thisyear = year(Date)
             thismonth = Month(Date)
             thisday = Day(Date)
             
             If thismonth >= Range("B9").Value Then
-                If thisday >= Range("J9").Value Then
+                If thisday > Range("J9").Value Then
                     thisyear = year(Date) + 1
                 End If
             End If
     
-            ' SQL文
+    
+            ' お客様情報シートのセルの値を取得してUPDATEするSQL文を設定し実行する。
+            Dim SQL As String   ' SQL
+            
             SQL = "UPDATE customers SET name = '" & Range("X9") & "'," & _
             "move_day = '" & thisyear & "-" & Range("B9").Value & "-" & Range("J9").Value & "'," & _
             "meridian = '" & Range("Q9").Value & "',front_time = '" & Range("S9").Value & "'," & _
@@ -135,32 +147,23 @@ Sub UPDATA_Click()
             ":" & Range("BD15").Value & "'':00',preview_name = '" & Range("AU18").Value & "'," & _
             "point = '" & Range("AZ73").Value & "' WHERE id = " & Range("I5")
             
-            ' SQLの実行
             db.execute SQL
         End If
     End If
  
-    ' 解放処理
+
+    ' データベースオブジェクトの解放処理を行う。
     db.disconnect
     Set db = Nothing
 Exit Sub
  
 ErrorTrap:
-    ' 解放処理
+    ' エラーが発生した場合、データベースオブジェクトの解放処理を行う。
     Set db = Nothing
-    
-    ' エラー処理
-    Select Case Err.Number
-        ' IDが空白
-        Case -2147217900
-            MsgBox "IDが選択されていません"
-        ' DB接続エラー
-        Case -2147467259
-            MsgBox "データベースに接続できません"
-    End Select
 End Sub
 
 ' 削除
 Sub DELETE_Click()
+    ' フォームを表示する。
     削除Form.Show
 End Sub

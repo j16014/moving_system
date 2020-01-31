@@ -11,7 +11,7 @@ Option Explicit
 
 ' セル（プルダウン）に変更があった場合実行
 Private Sub Worksheet_Change(ByVal Target As Range)
-    ' セルの変更がN1の場合
+    ' N1セルに変更があった場合、モジュールを呼び出す。
     If Target.address = "$N$1" Then
         Call Info_SELECT_click
     End If

@@ -8,51 +8,29 @@ Dim k As Integer
 
 ' 予約参照
 Sub Re_SELECT_Click()
-    Dim db As DBManager         ' データベースクラス
-    Dim dbFlg As Boolean        ' 接続フラグ
-    Dim adoRs As Object         ' ADOレコードセット
-    Dim SQL As String           ' SQL
-    Dim FldCount As Integer     ' フィールド数
-    Dim RecCount As Long        ' レコード数
-    Dim myArray() As Variant    ' 参照レコード配列
-    Dim condition As String     ' 現新建物情報
-    Dim address As String       ' 現新住所
-    Dim flg As Boolean          ' 条件・evフラグ
-    Dim Eofnum As Integer       ' データ無し判定
-    Dim now_address As String   ' 現住所
-    Dim now_floors As String    ' 現階層
-    Dim now_ev As String        ' 現ev
-    Dim now_type As String      ' 現建物種別
-    Dim new_address As String   ' 新住所
-    Dim new_floors As String    ' 新階層
-    Dim new_ev As String        ' 新ev
-    Dim new_type As String      ' 新建物種別
-    Dim meridian As String      ' am,pm,free
-     
-    On Error GoTo ErrorTrap
-   
-    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
-    Set db = New DBManager
-    dbFlg = db.connect
-    
-    ' 配車表クリア
+    ' セルの内容をクリアする。
     Range("C4:L55").Value = ""
     Range("P4:Y55").Value = ""
+
+
+    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う。
+    Dim db As DBManager     ' データベースクラス
     
-    ' データ無し判定初期化
+    On Error GoTo ErrorTrap
+    
+    Set db = New DBManager
+    db.connect
+    
+    
+    ' レコードが存在しなかった場合に加算していくフラグを定義する。
+    Dim Eofnum As Integer   ' データ無し判定フラグ
     Eofnum = 0
     
-    ' SQL文
-    SQL = "SELECT id,name,meridian,now_address,now_floors,now_ev,now_type," & _
-    "new_address,new_floors,new_ev,new_type,preview_name,point,start_time1,start_time2,start_time3," & _
-    "plan,difficulty,truck,driver,assistant1,assistant2,assistant3,assistant4 FROM customers " & _
-    "WHERE move_day = '" & Range("J1").Value & "-" & Range("M1").Value & "-" & Range("Q1").Value & "'"
-    
-    ' SQLの実行
-    Set adoRs = db.execute(SQL)
-        
+
+    ' 引越時間帯種別の種別数分処理を繰り返し、その都度meridianに異なる種別を設定する。
+    Dim meridian As String  ' 引越時間帯種別（am,pm,free）
+
     For i = 1 To 3
-        ' AM・PM・freeで条件分岐
         Select Case i
             Case 1
                 meridian = "AM"
@@ -62,7 +40,13 @@ Sub Re_SELECT_Click()
                 meridian = "free"
         End Select
         
-        ' SQL文
+        
+        ' SQL文を実行してレコードセットからフィールド数とレコード数を取得する。
+        Dim SQL As String           ' SQL
+        Dim adoRs As Object         ' ADOレコードセット
+        Dim FldCount As Integer     ' フィールド数
+        Dim RecCount As Long        ' レコード数
+
         SQL = "SELECT id,name,meridian,now_address,now_floors,now_ev,now_type," & _
         "new_address,new_floors,new_ev,new_type,preview_name,point," & _
         "start_time1,start_time2,start_time3,plan,difficulty,truck,driver," & _
@@ -70,14 +54,16 @@ Sub Re_SELECT_Click()
         "move_day = '" & Range("J1").Value & "-" & Range("M1").Value & "-" & Range("Q1").Value & "' " & _
         "AND meridian = '" & meridian & "'"
         
-        ' SQLの実行
         Set adoRs = db.execute(SQL)
-            
-        ' フィールド数とレコード数を取得
+
         FldCount = adoRs.Fields.Count
         RecCount = adoRs.RecordCount
             
-        ' AM・PM・freeにレコードが無い場合加算
+
+        ' レコードが存在しない場合はフラグを加算する。
+        ' レコードが存在する場合は、レコードセットを配列に格納する。
+        Dim myArray() As Variant    ' 参照レコード配列
+        
         If adoRs.EOF Then
             Select Case i
                 Case 1
@@ -88,31 +74,28 @@ Sub Re_SELECT_Click()
                     Eofnum = Eofnum + 1
             End Select
         Else
-            ' 二次元配列を再定義
             ReDim myArray(FldCount - 1, RecCount - 1)
-            ' レコードセットの内容を変数に格納
             myArray = adoRs.GetRows
-                    
-            For j = 0 To RecCount - 1
-                ' 条件初期化
-                condition = ""
-                flg = False
-                            
-                ' 条件変数定義
-                ' 現階層
-                now_floors = myArray(4, j)
-                ' 現ev
-                now_ev = myArray(5, j)
-                ' 現建物種別
-                now_type = myArray(6, j)
-                ' 新階層
-                new_floors = myArray(8, j)
-                ' 新ev
-                new_ev = myArray(9, j)
-                ' 新建物種別
-                new_type = myArray(10, j)
                            
-                ' 積み地の条件
+                    
+            ' レコードの建物情報・住所の文字列を設定するため、レコード数分処理を繰り返す。
+            Dim condition As String     ' 現・新建物情報
+            
+            For j = 0 To RecCount - 1
+                condition = ""
+                            
+                   
+                ' 各変数に配列から該当する値を取得し、荷物を積む地点の建物情報を設定する。
+                Dim now_floors As String    ' 現階層
+                Dim now_ev As String        ' 現ev
+                Dim now_type As String      ' 現建物種別
+                Dim flg As Boolean          ' エレベータフラグ
+                            
+                now_floors = myArray(4, j)
+                now_ev = myArray(5, j)
+                now_type = myArray(6, j)
+                flg = False
+                           
                 Select Case now_type
                     Case "アパート", "団地", "MC"
                         condition = condition & now_floors
@@ -132,7 +115,6 @@ Sub Re_SELECT_Click()
                     End Select
                 End Select
                         
-                ' 積み地evと～
                 If flg = True Then
                     If now_ev = "EV有" Then
                         condition = condition & "○～"
@@ -142,11 +124,18 @@ Sub Re_SELECT_Click()
                 Else
                     condition = condition & "～"
                 End If
-                            
-                ' フラグリセット
+                    
+                    
+                ' 各変数に配列から該当する値を取得し、荷物を降ろす地点の建物情報を設定する。
+                Dim new_floors As String    ' 新階層
+                Dim new_ev As String        ' 新ev
+                Dim new_type As String      ' 新建物種別
+                
+                new_floors = myArray(8, j)
+                new_ev = myArray(9, j)
+                new_type = myArray(10, j)
                 flg = False
-                        
-                ' 降ろし地条件
+               
                 Select Case new_type
                     Case "アパート", "団地", "MC"
                         condition = condition & new_floors
@@ -166,7 +155,6 @@ Sub Re_SELECT_Click()
                         End Select
                 End Select
                         
-                ' 降ろし地ev
                 If flg = True Then
                     If new_ev = "EV有" Then
                         condition = condition & "○"
@@ -174,20 +162,22 @@ Sub Re_SELECT_Click()
                         condition = condition & "×"
                     End If
                 End If
-                        
-                ' 住所初期化
+    
+                
+                ' 各変数に配列から該当する値を取得し、住所を設定する。
+                Dim address As String       ' 現・新住所
+                Dim now_address As String   ' 現住所
+                Dim new_address As String   ' 新住所
+                
                 address = ""
                         
-                ' 住所変数定義
-                ' 現住所
                 now_address = myArray(3, j)
-                ' 新住所
                 new_address = myArray(7, j)
-                ' 現新住所
                 address = now_address & " ～ " & new_address
-                        
+                
+                
+                ' 配列の内容をセルに格納する。引越時間帯種別によってセルの番地が変わるため条件分岐している。
                 If i = 1 Then
-                    ' セルに格納
                     Range("E" & j * 4 + 4) = myArray(0, j)     ' ID
                     Range("G" & j * 4 + 4) = myArray(1, j)     ' お客様氏名
                     Range("E" & j * 4 + 6) = condition         ' 現新建物情報
@@ -206,7 +196,6 @@ Sub Re_SELECT_Click()
                     Range("L" & j * 4 + 4) = myArray(22, j)    ' 助手3
                     Range("L" & j * 4 + 6) = myArray(23, j)    ' 助手4
                 ElseIf i = 2 Then
-                    ' セルに格納
                     Range("R" & j * 4 + 4) = myArray(0, j)     ' ID
                     Range("T" & j * 4 + 4) = myArray(1, j)     ' お客様氏名
                     Range("R" & j * 4 + 6) = condition         ' 現新建物情報
@@ -226,7 +215,6 @@ Sub Re_SELECT_Click()
                     Range("Y" & j * 4 + 6) = myArray(23, j)    ' 助手4
                 ElseIf i = 3 Then
                     If j < 5 Then
-                        ' セルに格納
                         Range("E" & j * 4 + 36) = myArray(0, j)     ' ID
                         Range("G" & j * 4 + 36) = myArray(1, j)     ' お客様氏名
                         Range("E" & j * 4 + 38) = condition         ' 現新建物情報
@@ -264,16 +252,18 @@ Sub Re_SELECT_Click()
                         Range("Y" & j * 4 + 18) = myArray(23, j)    ' 助手4
                     End If
                 End If
-            Next
+            Next j
         End If
-    Next
+    Next i
     
-    ' AM・PM・freeのデータが無い場合メッセージ表示
+    
+    ' レコードが存在しない場合はメッセージ表示する。
     If Eofnum = 3 Then
         MsgBox "お客様データがありません"
     End If
     
-    ' 解放処理
+    
+    ' レコードセットとデータベースオブジェクトの解放処理を行う。
     adoRs.Close
     Set adoRs = Nothing
     db.disconnect
@@ -281,42 +271,33 @@ Sub Re_SELECT_Click()
 Exit Sub
  
 ErrorTrap:
-    ' 解放処理
+    ' エラーが発生した場合、レコードセットとデータベースオブジェクトの解放処理を行う。
     Set adoRs = Nothing
     Set db = Nothing
-    
-    ' エラー処理
-    Select Case Err.Number
-        ' DB接続エラー
-        Case -2147467259
-            MsgBox "データベースに接続できません"
-    End Select
 End Sub
 
 ' 予約更新
 Sub Re_UPDATA_Click()
+    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
     Dim db As DBManager     ' データベースクラス
-    Dim dbFlg As Boolean    ' 接続フラグ
-    Dim SQL As String       ' SQL
-    Dim result As Long      ' YesNoボタン表示
     
     On Error GoTo ErrorTrap
    
-    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
     Set db = New DBManager
-    dbFlg = db.connect
-          
+    db.connect
+
+
+    ' 確認ボタンを表示しYesの場合は、配車表シートのセルの値をSQL文を設定しUPDATEを実行する。シートは二列になっているため条件分岐することで番地を変えている。
+    Dim result As Long      ' YesNoボタン表示
+    Dim SQL As String       ' SQL
+
     result = MsgBox("上書き保存してもよろしいですか？", vbYesNo + vbExclamation + vbDefaultButton2)
     
     If result = vbYes Then
-        ' AMかPM
         For i = 0 To 1
-            ' 13行（配車表の午前+free・午後+free）
             For j = 0 To 13
-                ' AM
                 If i = 0 Then
                     If Range("E" & j * 4 + 4).Value <> "" Then
-                        ' SQL文
                         SQL = "UPDATE customers SET start_time1 = '" & Range("C" & j * 4 + 4).Value & "'," & _
                         "start_time2 = '" & Range("C" & j * 4 + 5).Value & "'," & _
                         "start_time3 = '" & Range("C" & j * 4 + 7).Value & "'," & _
@@ -329,14 +310,11 @@ Sub Re_UPDATA_Click()
                         "assistant3 = '" & Range("L" & j * 4 + 4).Value & "'," & _
                         "assistant4 = '" & Range("L" & j * 4 + 6).Value & "'" & _
                         " WHERE id = '" & Range("E" & j * 4 + 4).Value & "'"
-                        
-                        ' SQLの実行
+
                         db.execute SQL
                     End If
-                ' PM
                 Else
-                    If Range("Q" & j * 4 + 4).Value <> "" Then
-                        ' SQL文
+                    If Range("R" & j * 4 + 4).Value <> "" Then
                         SQL = "UPDATE customers SET start_time1 = '" & Range("P" & j * 4 + 4).Value & "'," & _
                         "start_time2 = '" & Range("P" & j * 4 + 5).Value & "'," & _
                         "start_time3 = '" & Range("P" & j * 4 + 7).Value & "'," & _
@@ -350,7 +328,6 @@ Sub Re_UPDATA_Click()
                         "assistant4 = '" & Range("Y" & j * 4 + 6).Value & "'" & _
                         " WHERE id = '" & Range("R" & j * 4 + 4).Value & "'"
                         
-                        ' SQLの実行
                         db.execute SQL
                     End If
                 End If
@@ -358,19 +335,13 @@ Sub Re_UPDATA_Click()
         Next i
     End If
  
-    ' 解放処理
+ 
+    ' データベースオブジェクトの解放処理を行う。
     db.disconnect
     Set db = Nothing
 Exit Sub
  
 ErrorTrap:
-    ' 解放処理
+    ' エラーが発生した場合、データベースオブジェクトの解放処理を行う。
     Set db = Nothing
-    
-    ' エラー処理
-    Select Case Err.Number
-        ' DB接続エラー
-        Case -2147467259
-            MsgBox "データベースに接続できません"
-    End Select
 End Sub

@@ -9,8 +9,16 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Option Explicit
 
-' このブックを開いたら必ずトップ画面から始まる
+' ブックを開いたら実行
 Private Sub Workbook_Open()
+    ' トップ画面を開く。
     Worksheets("トップ画面").Activate
     Range("a1 ").Select
+    
+    ' スクロール範囲を指定する。
+    Worksheets("トップ画面").ScrollArea = "A1:R26"
+    Worksheets("お客様情報").ScrollArea = "A1:BO82"
+    Worksheets("新規作成").ScrollArea = "A1:BO82"
+    Worksheets("配車表").ScrollArea = "A1:Y66"
+    Worksheets("予約状況").ScrollArea = "A1:AF30"
 End Sub

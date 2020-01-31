@@ -20,44 +20,43 @@ Dim i As Integer
 Dim j As Integer
 Dim k As Integer
 
+' 起動時設定
 Private Sub UserForm_Initialize()
-    Dim db As DBManager         ' データベースクラス
-    Dim dbFlg As Boolean        ' 接続フラグ
+    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
+    Dim db As DBManager     ' データベースクラス
+    
+    On Error GoTo ErrorTrap
+   
+    Set db = New DBManager
+    db.connect
+    
+    
+    ' 確認ボタンを表示し、確認ボタンがYesの場合、SQL文を実行し、レコードセットからフィールド数とレコード数を取得する。
     Dim adoRs As Object         ' ADOレコードセット
     Dim SQL As String           ' SQL
     Dim FldCount As Integer     ' フィールド数
     Dim RecCount As Long        ' レコード数
-    Dim myArray() As Variant    ' 参照レコード配列
-     
-    On Error GoTo ErrorTrap
-   
-    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
-    Set db = New DBManager
-    dbFlg = db.connect
-    
-    ' SQL文
+
     SQL = "SELECT id,name,DATE_FORMAT(move_day,'%c月%e日'),preview_name," & _
     "DATE_FORMAT(preview_day,'%c月%e日 %H時%i分') FROM customers"
      
-    ' SQLの実行
     Set adoRs = db.execute(SQL)
     
-    ' フィールド数とレコード数を取得
     FldCount = adoRs.Fields.Count
     RecCount = adoRs.RecordCount
     
-    ' レコードが無い場合
+    
+    ' レコードが無い場合はメッセージを表示する。
+    ' レコードが存在する場合はレコードセットを配列に格納し、リストボックスに登録する。リストボックスは複数選択可能にする。
+    Dim myArray() As Variant    ' 参照レコード配列
+    
     If adoRs.EOF Then
           MsgBox "お客様データがありません"
-          ' プログラムの終了
           End
     Else
-        ' 二次元配列を再定義
         ReDim myArray(FldCount - 1, RecCount - 1)
-        ' レコードセットの内容を変数に格納
         myArray = adoRs.GetRows
     
-        ' リストボックスを登録（チェックボックス・複数選択可）
         With お客様リスト
             .Clear
             .ColumnCount = 5
@@ -68,7 +67,8 @@ Private Sub UserForm_Initialize()
         End With
     End If
         
-    ' 解放処理
+    
+    ' レコードセットとデータベースオブジェクトの解放処理を行う。
     adoRs.Close
     Set adoRs = Nothing
     db.disconnect
@@ -76,75 +76,67 @@ Private Sub UserForm_Initialize()
 Exit Sub
  
 ErrorTrap:
-    ' 解放処理
+    ' エラーが発生した場合、レコードセットとデータベースオブジェクトの解放処理を行う。
     Set adoRs = Nothing
     Set db = Nothing
-    
-    ' エラー処理
-    Select Case Err.Number
-        ' DB接続エラー
-        Case -2147467259
-            MsgBox "データベースに接続できません"
-    End Select
 End Sub
 
 ' 削除
 Private Sub DELETEButton_Click()
-    Dim db As DBManager         ' データベースクラス
-    Dim dbFlg As Boolean        ' 接続フラグ
-    Dim SQL As String           ' SQL
-    Dim adoRs As Object         ' ADOレコードセット
-    Dim FldCount As Integer     ' フィールド数
-    Dim RecCount As Long        ' レコード数
-    Dim myArray() As Variant    ' 参照レコード配列
-    Dim result As String        ' YesNoボタン表示
-
+    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う。
+    Dim db As DBManager     ' データベースクラス
+    
     On Error GoTo ErrorTrap
     
-    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
     Set db = New DBManager
-    dbFlg = db.connect
+    db.connect
+    
+
+    ' 確認ボタンを表示し、Yesの場合はリストボックスで選択されている項目ごとにDELETEを実行する。
+    Dim result As String        ' YesNoボタン表示
+    Dim SQL As String   ' SQL
     
     result = MsgBox("データを削除してもよろしいですか？", vbYesNo + vbExclamation + vbDefaultButton2)
     
     If result = vbYes Then
-        ' リストボックスで選択したお客様データを削除
         With お客様リスト
             For i = 0 To .ListCount - 1
                 If .Selected(i) = True Then
-                    ' SQL文
                     SQL = "DELETE FROM customers WHERE id=" & .List(i, 0)
-                      
-                    ' SQLの実行
+                    
                     db.execute SQL
                 End If
             Next i
         End With
         
-        ' 削除後再表示処理
-        ' SQL文
+
+        ' レコード削除後フォームに再表示を行う。
+        ' SQL文を実行し、レコードセットからフィールド数とレコード数を取得する。
+        Dim adoRs As Object         ' ADOレコードセット
+        Dim FldCount As Integer     ' フィールド数
+        Dim RecCount As Long        ' レコード数
+        
         SQL = "SELECT id,name,DATE_FORMAT(move_day,'%c月%e日'),preview_name," & _
         "DATE_FORMAT(preview_day,'%c月%e日 %H時%i分') FROM customers"
          
-        ' SQLの実行
         Set adoRs = db.execute(SQL)
         
-        ' フィールド数とレコード数を取得
         FldCount = adoRs.Fields.Count
         RecCount = adoRs.RecordCount
         
-        ' レコードが無い場合
+        
+        ' レコードが存在しない場合は、リストボックスをクリアする。
+        ' レコードが存在する場合はレコードセットを配列に格納し、リストボックスに登録する。リストボックスは複数選択可能にする。
+        Dim myArray() As Variant    ' 参照レコード配列
+        
         If adoRs.EOF Then
             With お客様リスト
                 .Clear
             End With
         Else
-            ' 二次元配列を再定義
             ReDim myArray(FldCount - 1, RecCount - 1)
-            ' レコードセットの内容を変数に格納
             myArray = adoRs.GetRows
         
-            ' リストボックスを更新（チェックボックス・複数選択可）
             With お客様リスト
                 .Clear
                 .ColumnCount = 5
@@ -155,30 +147,26 @@ Private Sub DELETEButton_Click()
             End With
         End If
 
+
         ' 解放処理
         adoRs.Close
         Set adoRs = Nothing
     End If
-     
-    ' 解放処理
+    
+    
+    ' データベースオブジェクトの解放処理を行う。
     db.disconnect
     Set db = Nothing
 Exit Sub
- 
+
 ErrorTrap:
-    ' 解放処理
+    ' エラーが発生した場合、データベースオブジェクトの解放処理を行う。
     Set db = Nothing
-    
-    ' エラー処理
-    Select Case Err.Number
-        ' DB接続エラー
-        Case -2147467259
-            MsgBox "データベースに接続できません"
-    End Select
 End Sub
 
 ' 閉じるボタン
 Private Sub 閉じる_Click()
+    ' フォームを閉じる。
     Unload Me
 End Sub
 

@@ -11,7 +11,7 @@ Option Explicit
 
 ' セル（プルダウン）に変更があった場合実行
 Private Sub Worksheet_Change(ByVal Target As Range)
-    ' セルの変更がJ1,M1,Q1セルの場合
+    ' J1,M1,Q1セルに変更があった場合、モジュールを呼び出す。
     If Target.address = "$J$1" Or Target.address = "$M$1" Or Target.address = "$Q$1" Then
         Call Re_SELECT_Click
     End If

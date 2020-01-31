@@ -3,27 +3,21 @@ Option Explicit
 
 ' 追加
 Sub NewINSERT_Click()
-    Dim db As DBManager         ' データベースクラス
-    Dim dbFlg As Boolean        ' 接続フラグ
-    Dim SQL As String           ' SQL
-    Dim result As Long          ' YesNoボタン表示
-    Dim thisyear As Integer     ' 年
-    Dim thismonth As Integer    ' 月
-    Dim thisday As Integer      ' 日
-    Dim move_day As String      ' 引越し日
-    Dim reception_day As String ' 受付日
-    Dim preview_day As String   ' 下見日
-      
+    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
+    Dim db As DBManager     ' データベースクラス
+    
     On Error GoTo ErrorTrap
     
-    ' DBManagerクラスのdbをインスタンス化し、接続処理を行う
     Set db = New DBManager
-    dbFlg = db.connect
+    db.connect
+    
+    
+    ' 確認ボタンを表示し、Yesの場合、文字数が制限値を超えていないかチェックする。
+    Dim result As Long  ' YesNoボタン表示
     
     result = MsgBox("データを追加してもよろしいですか？", vbYesNo + vbExclamation + vbDefaultButton2)
     
     If result = vbYes Then
-        ' 文字数制限チェック
         If Len(Range("X9").Value) <= 20 And _
         Len(Range("B9").Value) <= 2 And Len(Range("J9").Value) <= 2 And _
         Len(Range("Q9").Value) <= 4 And Len(Range("S9").Value) <= 10 And Len(Range("V9").Value) <= 10 And _
@@ -42,8 +36,13 @@ Sub NewINSERT_Click()
         Len(Range("AZ15").Value) <= 2 And Len(Range("BD15").Value) <= 2 And Len(Range("AU18").Value) <= 20 And _
         Len(Range("AZ73").Value) <= 5 _
         Then
-        
-            ' 引越し年判定
+            
+            
+            ' Date関数によって今日の日付を取得し、セルの日付が今日の日付以降だった場合、年を加算する。
+            Dim thisyear As Integer     ' 年
+            Dim thismonth As Integer    ' 月
+            Dim thisday As Integer      ' 日
+            
             thisyear = year(Date)
             thismonth = Month(Date)
             thisday = Day(Date)
@@ -54,12 +53,16 @@ Sub NewINSERT_Click()
                 End If
             End If
             
-            ' 受付日と下見日を初期化
+            
+            ' セルに日付が入力されていない場合はデフォルト値を設定する。入力されている場合は、セルの値を取得して変数に格納する。
+            Dim move_day As String      ' 引越日
+            Dim reception_day As String ' 受付日
+            Dim preview_day As String   ' 下見日
+            
             move_day = "1900-01-01"
             reception_day = "1900-01-01 01:01:00"
             preview_day = "1900-01-01 01:01:00"
             
-            ' 月日時の項目が空白の場合、値を設定
             If Range("B9").Value <> "" And Range("J9").Value <> "" Then
                 move_day = thisyear & "-" & Range("B9").Value & "-" & Range("J9").Value
             End If
@@ -74,7 +77,10 @@ Sub NewINSERT_Click()
                 "" & Range("AZ15").Value & ":" & Range("BD15").Value & ":00"
             End If
             
-            ' SQL文
+            
+            ' お客様シートのセルの値を取得し、INSERTするSQL文を設定して実行する。
+            Dim SQL As String   ' SQL
+            
             SQL = "INSERT INTO customers (name,move_day,meridian,front_time,back_time,reason,home_phone,contact_phone," & _
             "now_address,now_postalcode,now_floors,now_ev,now_width,now_type," & _
             "new_address,new_postalcode,new_floors,new_ev,new_width,new_type," & _
@@ -95,22 +101,21 @@ Sub NewINSERT_Click()
             "'" & preview_day & "','" & Range("AU18").Value & "'," & _
             "'" & Range("AZ73").Value & "','-','-','-','-','-','-','-','-','-','-','-' )"
             
-            ' SQLの実行
             db.execute SQL
          
-            ' 解放処理
+
+            ' データベースオブジェクトの解放処理を行う。
             db.disconnect
             Set db = Nothing
             
-            ' セルの内容クリア
+            
+            ' セルの内容をクリアし、お客様情報シートに遷移した後、新規作成シートを非表示にする。
             Call クリア_Click
             
-            ' シート移動
             Worksheets("お客様情報").Activate
-            ' ワークシート非表示
             Worksheets("新規作成").Visible = False
         Else
-            ' 解放処理
+            ' 文字数が制限値を越えている場合、データベースオブジェクトの解放処理を行いメッセージを表示する。
             Set db = Nothing
             MsgBox "文字数がオーバーしています"
         End If
@@ -118,32 +123,22 @@ Sub NewINSERT_Click()
 Exit Sub
      
 ErrorTrap:
-    ' 解放処理
+    ' エラーが発生した場合、データベースオブジェクトの解放処理を行う
     Set db = Nothing
-    
-    ' エラー処理
-    Select Case Err.Number
-        ' DB接続エラー
-        Case -2147467259
-            MsgBox "データベースに接続できません"
-    End Select
 End Sub
 
 ' 閉じる
 Sub ExitINSERT_Click()
+    ' 確認ボタンを表示し、Yesの場合はセルの内容をクリアしてお客様情報シートに遷移する。そして新規作成シートを非表示にする。
     Dim result As Long  ' YesNoボタン表示
 
     result = MsgBox("新規作成を閉じてもよろしいですか？", vbYesNo + vbExclamation + vbDefaultButton2)
     
     If result = vbYes Then
-        ' セルの内容クリア
         Call クリア_Click
         
         Range("A1").Select
-        
-        ' シート移動
         Worksheets("お客様情報").Activate
-        ' ワークシート非表示
         Worksheets("新規作成").Visible = False
     End If
 End Sub
